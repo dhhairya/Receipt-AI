@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReceiptAI — Smart Payment Receipt Generator</title>
+<meta name="description" content="ReceiptAI is an AI-powered smart payment receipt generator. Upload a blank receipt template, detect fields automatically, fill in details, add signatures, and download as JPG or PDF.">
+<meta name="keywords" content="receipt generator, payment receipt, AI receipt, receipt maker, PDF receipt, signature, Hindi receipt, English receipt">
+<meta name="author" content="SrishtiRai03">
+<meta name="theme-color" content="#7c6bc4">
+
+<!-- Open Graph / Social Sharing -->
+<meta property="og:title" content="ReceiptAI — Smart Payment Receipt Generator">
+<meta property="og:description" content="AI-powered receipt generator. Upload templates, detect fields, add signatures, and download professional receipts.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/og-image.png">
+
+<!-- Favicon -->
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Styles -->
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📄</div>
+    <div>
+      <div class="logo-title">ReceiptAI</div>
+      <div class="logo-sub">Smart Receipt Generator</div>
+    </div>
+  </div>
+  <nav>
+    <button class="ntab active" onclick="setTab('new')" id="tab-new">📝 New Receipt</button>
+    <button class="ntab" onclick="setTab('sigs')" id="tab-sigs">✍️ Signatures</button>
+    <button class="ntab" onclick="setTab('records')" id="tab-records">📚 Records</button>
+  </nav>
+</header>
+
+<main>
+  <!-- NEW RECEIPT TAB -->
+  <div class="tab-panel active" id="panel-new">
+    <div class="steps" id="stepbar">
+      <div class="step active" id="s1"><div class="snum">1</div>Upload Template</div>
+      <div class="sarr">›</div>
+      <div class="step" id="s2"><div class="snum">2</div>Detect Fields</div>
+      <div class="sarr">›</div>
+      <div class="step" id="s3"><div class="snum">3</div>Fill Details</div>
+      <div class="sarr">›</div>
+      <div class="step" id="s4"><div class="snum">4</div>Add Signature</div>
+      <div class="sarr">›</div>
+      <div class="step" id="s5"><div class="snum">5</div>Download</div>
+    </div>
+
+    <div id="upload-section">
+      <div class="card">
+        <div class="ch"><span class="ct">Upload Receipt Template</span></div>
+        <div class="cb">
+          <div class="ibox">ℹ️ Upload a photo or scan of your blank receipt/voucher. AI will automatically detect all fields — in English or Hindi.</div>
+          <div class="uzone" id="dropzone" onclick="document.getElementById('tpl-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)">
+            <div class="uicon">🧾</div>
+            <div class="utxt"><strong>Click to upload</strong> or drag &amp; drop<br>JPG, PNG supported</div>
+          </div>
+          <input type="file" id="tpl-file" accept="image/*" style="display:none" onchange="handleTemplateFile(this.files[0])">
+          <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;" id="saved-templates-row"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="receipt-section" style="display:none">
+      <div class="rl">
+        <!-- LEFT: Preview -->
+        <div>
+          <div class="card" style="margin-bottom:14px;">
+            <div class="ch">
+              <span class="ct">Receipt Preview</span>
+              <div class="row">
+                <div class="sigsize">Sig: <input type="range" id="sigsize" min="8" max="30" value="18" oninput="updateSigSize()"> <span id="sigsizeval">18</span>%</div>
+                <div class="sigsize">Font: <input type="range" id="fontsize" min="10" max="50" value="18" oninput="updateFontSize()"> <span id="fontsizeval">18</span></div>
+                <button class="btn bo bsm" onclick="resetTemplate()">↩ New Template</button>
+              </div>
+            </div>
+            <div class="cb" style="padding:14px;">
+              <div class="pvwrap" id="pvwrap">
+                <img id="tpl-img" src="" alt="Receipt Template">
+                <div class="det-ov" id="det-ov" style="display:none">
+                  <div class="spin"></div>
+                  <div class="det-txt">🔍 AI is detecting fields…<br><small style="opacity:.7">Reading English & Hindi labels</small></div>
+                </div>
+                <!-- field overlays and sig overlay added by JS -->
+              </div>
+              <div style="margin-top:10px;font-size:.75rem;color:var(--TM)">💡 Drag field values and signature to reposition on the receipt.</div>
+            </div>
+          </div>
+          <div id="download-actions" style="display:none">
+            <div class="card">
+              <div class="ch"><span class="ct">Save & Download</span></div>
+              <div class="cb">
+                <div class="row" style="flex-wrap:wrap;gap:10px;">
+                  <button class="btn bp" onclick="saveRecord()">💾 Save to Records</button>
+                  <button class="btn ba" onclick="downloadJPG()">⬇ Download JPG</button>
+                  <button class="btn bo" onclick="downloadPDF()">📄 Download PDF</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Form Panel -->
+        <div class="card">
+          <div class="ch"><span class="ct">Receipt Details</span><span class="badge bga" id="field-count-badge">0 fields</span></div>
+          <div class="cb fp" id="form-panel">
+            <div class="empty"><div class="eicon">📋</div><p>Upload a template to<br>start filling details.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNATURES TAB -->
+  <div class="tab-panel" id="panel-sigs">
+    <div class="secttitle">Signature Manager</div>
+    <div class="sectsub" style="margin-bottom:20px">Upload and manage multiple signatures. Select one when generating a receipt.</div>
+    <div class="card" style="margin-bottom:22px;">
+      <div class="ch"><span class="ct">Add New Signature</span></div>
+      <div class="cb">
+        <div class="uzone" onclick="document.getElementById('sig-file').click()" style="padding:22px;">
+          <div class="uicon">✍️</div>
+          <div class="utxt"><strong>Upload signature image</strong><br>PNG with transparent background recommended</div>
+        </div>
+        <input type="file" id="sig-file" accept="image/*" style="display:none" onchange="uploadSignature(this.files[0]);this.value=''">
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="ct">Saved Signatures</span><span id="sig-count" class="badge bgp">0</span></div>
+      <div class="cb">
+        <div class="sggrid" id="sig-grid">
+          <div class="empty"><div class="eicon">✍️</div><p>No signatures yet.<br>Upload one above.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECORDS TAB -->
+  <div class="tab-panel" id="panel-records">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div><div class="secttitle">Payment Records</div><div class="sectsub">All saved receipts, organized by name.</div></div>
+      <div class="sbar" style="display:flex;gap:10px;">
+        <select id="rec-category-filter" onchange="renderRecords()" style="padding:6px 12px;border-radius:20px;border:1px solid var(--B);background:var(--W);color:var(--T);font-family:inherit;font-size:0.9rem;">
+          <option value="">All Categories</option>
+          <option value="Daan">Daan (Donation)</option>
+          <option value="Sadasyata">Sadasyata (Membership)</option>
+          <option value="Other">Other</option>
+        </select>
+        <span style="align-self:center;">🔍</span><input type="text" placeholder="Search by name…" id="rec-search" oninput="renderRecords()">
+      </div>
+    </div>
+    <div class="card">
+      <div class="cb" style="padding:0;overflow:hidden;border-radius:var(--r);">
+        <div id="records-container"><div class="empty" style="padding:60px"><div class="eicon">📚</div><p>No records saved yet.<br>Generate a receipt and click Save.</p></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Record Detail Modal -->
+<div class="mbk" id="modal-backdrop" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mh">
+      <span class="ct" id="modal-title">Receipt Detail</span>
+      <button class="btn bo bsm" onclick="closeModal()">✕ Close</button>
+    </div>
+    <div class="cb" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Application Logic -->
+<script src="js/app.js"></script>
+</body>
+</html>
